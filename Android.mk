@@ -130,7 +130,7 @@ LOCAL_PRIVATE_PLATFORM_APIS := true
 LOCAL_CERTIFICATE := platform
 LOCAL_PACKAGE_NAME := Launcher3Go
 LOCAL_PRIVILEGED_MODULE := true
-LOCAL_OVERRIDES_PACKAGES := Home Launcher2 Launcher3
+LOCAL_OVERRIDES_PACKAGES := Home Launcher2 Launcher3 Launcher3QuickStep Launcher3QuickStepGo
 
 LOCAL_FULL_LIBS_MANIFEST_FILES := \
     $(LOCAL_PATH)/AndroidManifest.xml \
@@ -236,7 +236,7 @@ LOCAL_PRIVATE_PLATFORM_APIS := true
 LOCAL_CERTIFICATE := platform
 LOCAL_PACKAGE_NAME := Launcher3QuickStepGo
 LOCAL_PRIVILEGED_MODULE := true
-LOCAL_OVERRIDES_PACKAGES := Home Launcher2 Launcher3
+LOCAL_OVERRIDES_PACKAGES := Home Launcher2 Launcher3 Launcher3QuickStep
 
 LOCAL_FULL_LIBS_MANIFEST_FILES := \
     $(LOCAL_PATH)/go/AndroidManifest.xml \
