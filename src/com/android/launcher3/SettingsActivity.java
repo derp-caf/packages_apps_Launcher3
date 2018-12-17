@@ -55,6 +55,7 @@ import android.widget.ListView;
 import com.android.launcher3.graphics.IconShapeOverride;
 import com.android.launcher3.notification.NotificationListener;
 import com.android.launcher3.util.ExtraUtils;
+import com.android.launcher3.uioverrides.WallpaperColorInfo;
 import com.android.launcher3.util.ListViewHighlighter;
 import com.android.launcher3.util.SettingsObserver;
 import com.android.launcher3.views.ButtonPreference;
@@ -64,11 +65,13 @@ import com.android.launcher3.util.LooperExecutor;
 
 import java.util.Objects;
 
+import static com.android.launcher3.Utilities.getPrefs;
 /**
  * Settings activity for Launcher. Currently implements the following setting: Allow rotation
  */
-public class SettingsActivity extends Activity {
+public class SettingsActivity extends Activity implements WallpaperColorInfo.OnChangeListener {
 
+    public static final String PREF_THEME_STYLE_KEY = "pref_theme_style";
     private static final String ICON_BADGING_PREFERENCE_KEY = "pref_icon_badging";
 
     /** Hidden field Settings.Secure.NOTIFICATION_BADGING */
@@ -82,10 +85,11 @@ public class SettingsActivity extends Activity {
     private static final int DELAY_HIGHLIGHT_DURATION_MILLIS = 600;
     private static final String SAVE_HIGHLIGHTED_KEY = "android:preference_highlighted";
 
-    public static final String PREF_THEME_STYLE_KEY = "pref_theme_style";
     private static final long WAIT_BEFORE_RESTART = 250;
     static final String KEY_FEED_INTEGRATION = "pref_feed_integration";
     static final String KEY_SHOW_SEARCHBAR = "pref_show_searchbar";
+    protected int mThemeStyle;
+    private int mThemeRes = R.style.PreferenceTheme;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,10 +101,44 @@ public class SettingsActivity extends Activity {
                     .replace(android.R.id.content, getNewFragment())
                     .commit();
         }
+
+        WallpaperColorInfo wallpaperColorInfo = WallpaperColorInfo.getInstance(this);
+        wallpaperColorInfo.addOnChangeListener(this);
+        int themeRes = getThemeRes(wallpaperColorInfo);
+        if (themeRes != mThemeRes) {
+            mThemeRes = themeRes;
+            setTheme(themeRes);
+        }
     }
 
     protected PreferenceFragment getNewFragment() {
         return new LauncherSettingsFragment();
+    }
+
+    @Override
+    public void onExtractedColorsChanged(WallpaperColorInfo wallpaperColorInfo) {
+        if (mThemeRes != getThemeRes(wallpaperColorInfo)) {
+            recreate();
+        }
+    }
+
+    protected int getThemeRes(WallpaperColorInfo wallpaperColorInfo) {
+        mThemeStyle = Integer.parseInt(getPrefs(getApplicationContext()).getString(SettingsActivity.PREF_THEME_STYLE_KEY, "0"));
+        if (mThemeStyle == 1) {
+            return R.style.PreferenceTheme;
+        } else if (mThemeStyle == 2) {
+            return R.style.PreferenceTheme_Dark;
+        } else if (mThemeStyle == 3) {
+            return R.style.PreferenceTheme_Black;
+        } else {
+            if (wallpaperColorInfo.isDark()) {
+                return wallpaperColorInfo.supportsDarkText() ?
+                        R.style.LauncherTheme_DarkText : R.style.PreferenceTheme_Dark;
+            } else {
+                return wallpaperColorInfo.supportsDarkText() ?
+                        R.style.LauncherTheme_DarkText : R.style.PreferenceTheme;
+            }
+        }
     }
 
     /**
