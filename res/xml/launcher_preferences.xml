@@ -154,6 +154,14 @@
             android:entries="@array/theme_style_entries"
             android:entryValues="@array/theme_style_values"
 	    android:defaultValue="0" />
+
+        <SwitchPreference
+            android:key="pref_lock_desktop"
+            android:title="@string/lock_desktop_title"
+            android:summary="@string/lock_desktop_summary"
+            android:defaultValue="false"
+            android:persistent="true" />
+
      </PreferenceCategory>
 
     <Preference
