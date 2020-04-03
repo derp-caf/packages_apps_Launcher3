@@ -129,6 +129,7 @@ import com.android.launcher3.util.PackageManagerHelper;
 import com.android.launcher3.util.PackageUserKey;
 import com.android.launcher3.util.PendingRequestArgs;
 import com.android.launcher3.util.RaceConditionTracker;
+import com.android.launcher3.util.ShortcutUtil;
 import com.android.launcher3.util.SystemUiController;
 import com.android.launcher3.util.Themes;
 import com.android.launcher3.util.Thunk;
@@ -162,6 +163,7 @@ import java.util.List;
 import java.util.function.Predicate;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 
 /**
  * Default launcher application.
@@ -214,9 +216,9 @@ public class Launcher extends BaseDraggingActivity implements LauncherExterns,
     private static final int ON_ACTIVITY_RESULT_ANIMATION_DELAY = 500;
 
     // How long to wait before the new-shortcut animation automatically pans the workspace
-    private static final int NEW_APPS_PAGE_MOVE_DELAY = 500;
+    @VisibleForTesting public static final int NEW_APPS_PAGE_MOVE_DELAY = 500;
     private static final int NEW_APPS_ANIMATION_INACTIVE_TIMEOUT_SECONDS = 5;
-    @Thunk static final int NEW_APPS_ANIMATION_DELAY = 500;
+    @Thunk @VisibleForTesting public static final int NEW_APPS_ANIMATION_DELAY = 500;
 
     private static final int APPS_VIEW_ALPHA_CHANNEL_INDEX = 1;
     private static final int SCRIM_VIEW_ALPHA_CHANNEL_INDEX = 0;
@@ -888,9 +890,7 @@ public class Launcher extends BaseDraggingActivity implements LauncherExterns,
         if (mLauncherCallbacks != null) {
             mLauncherCallbacks.onStop();
         }
-
-        getUserEventDispatcher().logActionCommand(Action.Command.STOP,
-                mStateManager.getState().containerType, -1);
+        logStopAndResume(Action.Command.STOP);
 
         mAppWidgetHost.setListenIfResumed(false);
 
@@ -905,9 +905,6 @@ public class Launcher extends BaseDraggingActivity implements LauncherExterns,
 
     @Override
     protected void onStart() {
-        if (TestProtocol.sDebugTracing) {
-            Log.d(TestProtocol.NO_OVERVIEW_EVENT_TAG, "Launcher.onStart");
-        }
         RaceConditionTracker.onEvent(ON_START_EVT, ENTER);
         super.onStart();
         if (mLauncherCallbacks != null) {
@@ -919,8 +916,7 @@ public class Launcher extends BaseDraggingActivity implements LauncherExterns,
 
     private void handleDeferredResume() {
         if (hasBeenResumed() && !mStateManager.getState().disableInteraction) {
-            getUserEventDispatcher().logActionCommand(Action.Command.RESUME,
-                    mStateManager.getState().containerType, -1);
+            logStopAndResume(Action.Command.RESUME);
             getUserEventDispatcher().startSession();
 
             UiFactory.onLauncherStateOrResumeChanged(this);
@@ -945,6 +941,17 @@ public class Launcher extends BaseDraggingActivity implements LauncherExterns,
         } else {
             mDeferredResumePending = true;
         }
+    }
+
+    private void logStopAndResume(int command) {
+        int containerType = mStateManager.getState().containerType;
+        if (containerType == ContainerType.WORKSPACE && mWorkspace != null) {
+            getUserEventDispatcher().logActionCommand(command,
+                containerType, -1, mWorkspace.isOverlayShown() ? -1 : 0);
+        } else {
+            getUserEventDispatcher().logActionCommand(command, containerType, -1);
+        }
+
     }
 
     protected void onStateSet(LauncherState state) {
@@ -1878,11 +1885,6 @@ public class Launcher extends BaseDraggingActivity implements LauncherExterns,
 
     public boolean startActivitySafely(View v, Intent intent, ItemInfo item,
             @Nullable String sourceContainer) {
-        if (TestProtocol.sDebugTracing) {
-            android.util.Log.d(TestProtocol.NO_START_TAG,
-                    "startActivitySafely outer");
-        }
-
         if (!hasBeenResumed()) {
             // Workaround an issue where the WM launch animation is clobbered when finishing the
             // recents animation into launcher. Defer launching the activity until Launcher is
@@ -1973,6 +1975,10 @@ public class Launcher extends BaseDraggingActivity implements LauncherExterns,
         if (mPendingExecutor != null) {
             mPendingExecutor.markCompleted();
             mPendingExecutor = null;
+
+            // We might have set this flag previously and forgot to clear it.
+            mAppsView.getAppsStore()
+                    .disableDeferUpdatesSilently(AllAppsStore.DEFER_UPDATES_NEXT_DRAW);
         }
     }
 
@@ -2326,9 +2332,7 @@ public class Launcher extends BaseDraggingActivity implements LauncherExterns,
 
     @Override
     public void executeOnNextDraw(ViewOnDrawExecutor executor) {
-        if (mPendingExecutor != null) {
-            mPendingExecutor.markCompleted();
-        }
+        clearPendingBinds();
         mPendingExecutor = executor;
         if (!isInState(ALL_APPS)) {
             mAppsView.getAppsStore().enableDeferUpdates(AllAppsStore.DEFER_UPDATES_NEXT_DRAW);
@@ -2569,7 +2573,7 @@ public class Launcher extends BaseDraggingActivity implements LauncherExterns,
                         KeyEvent.KEYCODE_O, KeyEvent.META_CTRL_ON));
             }
             if (currentFocus.getTag() instanceof ItemInfo
-                    && DeepShortcutManager.supportsShortcuts((ItemInfo) currentFocus.getTag())) {
+                    && ShortcutUtil.supportsShortcuts((ItemInfo) currentFocus.getTag())) {
                 shortcutInfos.add(new KeyboardShortcutInfo(
                         getString(R.string.shortcuts_menu_with_notifications_description),
                         KeyEvent.KEYCODE_S, KeyEvent.META_CTRL_ON));
